@@ -1,0 +1,96 @@
+import { useGoogleLogin } from "@react-oauth/google";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+const GoogleLoginButton = ({ buttonText = "Continue with Google" }) => {
+  const { login } = useAuth(); // Using your existing auth context
+  const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (tokenResponse) => {
+    try {
+      console.log("Google login success, getting user info...");
+
+      // Exchange the token for user info
+      const response = await axios.post(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${tokenResponse.access_token}`,
+          },
+        },
+      );
+
+      const userInfo = response.data;
+      console.log("Google user info:", userInfo);
+
+      // Send to your backend
+      const backendResponse = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/google`,
+        {
+          googleId: userInfo.sub,
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
+        },
+      );
+
+      const { token, user } = backendResponse.data;
+
+      // Store token and update auth state
+      localStorage.setItem("token", token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // Use your existing auth context to update user
+      // This assumes your AuthContext has a way to set user
+      window.location.href = "/dashboard"; // Simple redirect
+    } catch (error) {
+      console.error(
+        "Google login error:",
+        error.response?.data || error.message,
+      );
+      alert("Google login failed. Please try again.");
+    }
+  };
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: (error) => {
+      console.error("Google login failed:", error);
+      alert("Google login failed. Please try again.");
+    },
+    flow: "implicit", // Uses implicit flow for access token
+    scope: "email profile openid",
+  });
+
+  return (
+    <button
+      onClick={() => googleLogin()}
+      type="button"
+      className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+    >
+      <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+        <path
+          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+          fill="#4285F4"
+        />
+        <path
+          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+          fill="#34A853"
+        />
+        <path
+          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+          fill="#FBBC05"
+        />
+        <path
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+          fill="#EA4335"
+        />
+      </svg>
+      {buttonText}
+    </button>
+  );
+};
+
+export default GoogleLoginButton;
