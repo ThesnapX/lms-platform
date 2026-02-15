@@ -165,6 +165,9 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
 const registerUser = async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -197,6 +200,7 @@ const registerUser = async (req, res) => {
       emailVerificationToken: hashedToken,
       emailVerificationExpire: verificationExpire,
       isEmailVerified: false,
+      role: "visitor", // Default role for new users
     });
 
     // Create verification URL
@@ -254,6 +258,7 @@ const registerUser = async (req, res) => {
       });
     }
   } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
       message: error.message,

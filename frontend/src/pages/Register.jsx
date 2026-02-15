@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { AcademicCapIcon } from "@heroicons/react/24/outline";
 import GoogleLoginButton from "../components/auth/GoogleLoginButton";
 import PasswordInput from "../components/common/PasswordInput";
+
 const Register = () => {
   const {
     register: registerHook,
@@ -12,15 +13,17 @@ const Register = () => {
     formState: { errors },
     watch,
   } = useForm();
-  const { register: registerUser } = useAuth(); // ✅ This should match the function name in AuthContext
+  const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const [registerError, setRegisterError] = useState("");
   const [registerMethod, setRegisterMethod] = useState("email");
+  const [loading, setLoading] = useState(false);
 
   const password = watch("password", "");
 
   const onSubmit = async (data) => {
     setRegisterError("");
+    setLoading(true);
 
     console.log("Submitting registration form...");
 
@@ -32,19 +35,16 @@ const Register = () => {
         : { phone: data.phone }),
     };
 
-    const result = await registerUser(userData); // ✅ This calls the register function from AuthContext
+    const result = await registerUser(userData);
 
     console.log("Registration result:", result);
+    setLoading(false);
 
     if (result.success) {
       navigate("/dashboard");
     } else {
       setRegisterError(result.message);
     }
-  };
-
-  const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
   };
 
   return (
@@ -71,6 +71,7 @@ const Register = () => {
         {/* Register Method Toggle */}
         <div className="flex justify-center space-x-4">
           <button
+            type="button"
             onClick={() => setRegisterMethod("email")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               registerMethod === "email"
@@ -81,6 +82,7 @@ const Register = () => {
             Email
           </button>
           <button
+            type="button"
             onClick={() => setRegisterMethod("phone")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               registerMethod === "phone"
@@ -119,6 +121,7 @@ const Register = () => {
                 type="text"
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
                 placeholder="John Doe"
+                disabled={loading}
               />
               {errors.name && (
                 <p className="text-red-500 text-xs mt-1">
@@ -147,6 +150,7 @@ const Register = () => {
                   type="email"
                   className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
                   placeholder="you@example.com"
+                  disabled={loading}
                 />
                 {errors.email && (
                   <p className="text-red-500 text-xs mt-1">
@@ -173,6 +177,7 @@ const Register = () => {
                   type="tel"
                   className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
                   placeholder="9876543210"
+                  disabled={loading}
                 />
                 {errors.phone && (
                   <p className="text-red-500 text-xs mt-1">
@@ -186,10 +191,10 @@ const Register = () => {
             <PasswordInput
               register={registerHook}
               errors={errors}
-              className="rounded-md"
               name="password"
               label="Password"
               placeholder="••••••••"
+              disabled={loading}
               validation={{
                 required: "Password is required",
                 minLength: {
@@ -200,29 +205,6 @@ const Register = () => {
             />
 
             {/* Confirm Password */}
-            {/* <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Confirm Password
-              </label>
-              <input
-                {...registerHook("confirmPassword", {
-                  required: "Please confirm your password",
-                  validate: (value) =>
-                    value === password || "Passwords do not match",
-                })}
-                type="password"
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-                placeholder="••••••••"
-              />
-              {errors.confirmPassword && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
-            </div> */}
             <div>
               <label
                 htmlFor="confirmPassword"
@@ -239,8 +221,9 @@ const Register = () => {
                   })}
                   type="password"
                   id="confirmPassword"
-                  className="appearance-none  relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
                   placeholder="••••••••"
+                  disabled={loading}
                 />
               </div>
               {errors.confirmPassword && (
@@ -254,9 +237,10 @@ const Register = () => {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Account
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </div>
 

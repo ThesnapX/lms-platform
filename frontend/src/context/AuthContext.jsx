@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useContext } from "react";
-import axios from "../utils/axios";
+import axios from "axios";
 
 const AuthContext = createContext();
 
@@ -11,9 +11,13 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Configure axios defaults
+  axios.defaults.baseURL = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       loadUser();
     } else {
       setLoading(false);
@@ -27,6 +31,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Failed to load user:", error);
       localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
     } finally {
       setLoading(false);
     }
@@ -39,8 +44,10 @@ export const AuthProvider = ({ children }) => {
         phone,
         password,
       });
+
       const { token, user } = response.data;
       localStorage.setItem("token", token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       setUser(user);
       return { success: true };
     } catch (error) {
@@ -51,24 +58,47 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      console.log("Sending registration data:", userData);
+      const response = await axios.post("/auth/register", userData);
+
+      console.log("Registration response:", response.data);
+
+      const { token, user } = response.data;
+      localStorage.setItem("token", token);
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      setUser(user);
+
+      return { success: true };
+    } catch (error) {
+      console.error(
+        "Registration error:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        message: error.response?.data?.message || "Registration failed",
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
+    delete axios.defaults.headers.common["Authorization"];
     setUser(null);
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        isAuthenticated: !!user,
-        isAdmin: user?.role === "admin",
-        isEditor: user?.role === "editor" || user?.role === "admin",
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    loading,
+    login,
+    register,
+    logout,
+    isAuthenticated: !!user,
+    isAdmin: user?.role === "admin",
+    isEditor: user?.role === "editor" || user?.role === "admin",
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
