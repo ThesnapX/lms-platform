@@ -152,6 +152,8 @@ const updateUserRole = async (req, res) => {
 // @access  Private/Admin
 const deleteUser = async (req, res) => {
   try {
+    console.log("Attempting to delete user:", req.params.id);
+
     const user = await User.findById(req.params.id);
 
     if (!user) {
@@ -169,13 +171,14 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    await user.remove();
+    await user.deleteOne();
 
     res.json({
       success: true,
       message: "User deleted successfully",
     });
   } catch (error) {
+    console.error("Error deleting user:", error);
     res.status(500).json({
       success: false,
       message: error.message,

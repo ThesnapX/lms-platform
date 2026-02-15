@@ -7,7 +7,7 @@ const axiosInstance = axios.create({
   },
 });
 
-// Request interceptor
+// Request interceptor to add token
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -43,9 +43,12 @@ axiosInstance.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      console.log("🔒 401 Unauthorized - Token might be invalid");
+      console.log("🔒 401 Unauthorized - Token might be invalid or expired");
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      // Redirect to login if not already there
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
+      }
     }
 
     return Promise.reject(error);

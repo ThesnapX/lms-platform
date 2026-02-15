@@ -109,16 +109,27 @@ const AdminDashboard = () => {
       )
     ) {
       try {
-        await axios.delete(`/admin/users/${userId}`);
+        console.log("Attempting to delete user:", userId);
+
+        // Make sure we're using the correct endpoint
+        const response = await axios.delete(`/admin/users/${userId}`);
+
+        console.log("Delete response:", response.data);
         alert("User deleted successfully!");
+
+        // Refresh the user list
         fetchAdminData();
       } catch (error) {
         console.error("Error deleting user:", error);
-        alert("Failed to delete user");
+        console.error("Error response:", error.response?.data);
+
+        // Show a more specific error message
+        const errorMessage =
+          error.response?.data?.message || "Failed to delete user";
+        alert(errorMessage);
       }
     }
   };
-
   const handleDeleteCourse = async (courseId) => {
     if (
       window.confirm(
