@@ -141,6 +141,16 @@ app.get("/api/debug/user-purchases", protect, async (req, res) => {
   }
 });
 
+// Add this near your other routes (around line where you have debug routes)
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Backend is running",
+    time: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
 // Error handler
 app.use(errorHandler);
 
