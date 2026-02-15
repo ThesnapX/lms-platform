@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // IMPORTANT: Proper CORS configuration
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["https://lms-io.onrender.com", "https://lmsio.vercel.app"],
     credentials: true,
     exposedHeaders: ["Authorization"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
