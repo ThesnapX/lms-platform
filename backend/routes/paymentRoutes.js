@@ -8,19 +8,13 @@ const {
   rejectPayment,
 } = require("../controllers/paymentController");
 const { protect, authorize } = require("../middleware/auth");
-const requireEmailVerification = require("../middleware/verifiedEmail");
 const upload = require("../utils/multerConfig");
 
 // All routes require authentication
 router.use(protect);
 
 // Public payment routes (any authenticated user)
-router.post(
-  "/",
-  requireEmailVerification,
-  upload.single("screenshot"),
-  createPayment,
-);
+router.post("/", upload.single("screenshot"), createPayment);
 router.get("/my-payments", getMyPayments);
 
 // Admin only routes

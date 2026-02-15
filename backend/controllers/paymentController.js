@@ -139,23 +139,36 @@ const approvePayment = async (req, res) => {
     console.log("- Course:", payment.course?.title);
     console.log("- Course ID:", payment.course?._id);
 
+    // Update payment status
     payment.status = "approved";
     payment.reviewedBy = req.user._id;
     payment.reviewedAt = Date.now();
     await payment.save();
-    await sendPurchaseEmail(user, payment.course);
 
     // Grant course access to user
     const user = await User.findById(payment.user._id);
 
+    if (!user) {
+      console.log("❌ User not found");
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    console.log("\nUser before update:");
+    console.log("- User ID:", user._id);
+    console.log("- Email:", user.email);
     console.log("- Purchased courses count:", user.purchasedCourses.length);
 
     const courseIdStr = payment.course._id.toString();
 
     // Check if user already has this course (prevent duplicates)
     const hasCourse = user.purchasedCourses.some(
-      (id) => id.toString() === courseIdStr,
+      (id) => id && id.toString() === courseIdStr,
     );
+
+    console.log("Already has this course?", hasCourse);
 
     if (!hasCourse) {
       user.purchasedCourses.push(payment.course._id);
@@ -166,7 +179,7 @@ const approvePayment = async (req, res) => {
 
     // Check if progress already exists for this course
     const existingProgress = user.courseProgress.find(
-      (p) => p.courseId?.toString() === courseIdStr,
+      (p) => p.courseId && p.courseId.toString() === courseIdStr,
     );
 
     if (!existingProgress) {
@@ -184,6 +197,16 @@ const approvePayment = async (req, res) => {
     await user.save();
     console.log("✅ User saved successfully");
 
+    // Send purchase confirmation email (optional)
+    try {
+      const { sendPurchaseEmail } = require("../services/emailService");
+      await sendPurchaseEmail(user, payment.course);
+      console.log("✅ Purchase email sent");
+    } catch (emailError) {
+      console.log("⚠️ Email sending failed:", emailError.message);
+      // Don't fail the approval if email fails
+    }
+
     console.log("=== PAYMENT APPROVAL COMPLETE ===\n");
 
     res.json({
@@ -192,9 +215,10 @@ const approvePayment = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error approving payment:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Server error during payment approval",
     });
   }
 };
