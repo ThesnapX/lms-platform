@@ -16,13 +16,27 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://lmsio.vercel.app",
+  process.env.CLIENT_URL,
+];
+
 // IMPORTANT: Proper CORS configuration
 app.use(
   cors({
-    origin: ["https://lms-io.onrender.com", "https://lmsio.vercel.app"],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg =
+          "The CORS policy for this site does not allow access from the specified Origin.";
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     credentials: true,
-    exposedHeaders: ["Authorization"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   }),
 );
 
