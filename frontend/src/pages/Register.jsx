@@ -8,7 +8,7 @@ import PasswordInput from "../components/common/PasswordInput";
 
 const Register = () => {
   const {
-    register: registerHook,
+    register,
     handleSubmit,
     formState: { errors },
     watch,
@@ -16,7 +16,6 @@ const Register = () => {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const [registerError, setRegisterError] = useState("");
-  const [registerMethod, setRegisterMethod] = useState("email");
   const [loading, setLoading] = useState(false);
 
   const password = watch("password", "");
@@ -25,19 +24,14 @@ const Register = () => {
     setRegisterError("");
     setLoading(true);
 
-    console.log("Submitting registration form...");
-
     const userData = {
       name: data.name,
+      email: data.email,
       password: data.password,
-      ...(registerMethod === "email"
-        ? { email: data.email }
-        : { phone: data.phone }),
     };
 
     const result = await registerUser(userData);
 
-    console.log("Registration result:", result);
     setLoading(false);
 
     if (result.success) {
@@ -68,32 +62,6 @@ const Register = () => {
           </p>
         </div>
 
-        {/* Register Method Toggle */}
-        <div className="flex justify-center space-x-4">
-          <button
-            type="button"
-            onClick={() => setRegisterMethod("email")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              registerMethod === "email"
-                ? "bg-lime-500 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Email
-          </button>
-          <button
-            type="button"
-            onClick={() => setRegisterMethod("phone")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              registerMethod === "phone"
-                ? "bg-lime-500 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Phone
-          </button>
-        </div>
-
         {registerError && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
             {registerError}
@@ -111,7 +79,7 @@ const Register = () => {
                 Full Name
               </label>
               <input
-                {...registerHook("name", {
+                {...register("name", {
                   required: "Name is required",
                   minLength: {
                     value: 2,
@@ -119,7 +87,7 @@ const Register = () => {
                   },
                 })}
                 type="text"
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 placeholder="John Doe"
                 disabled={loading}
               />
@@ -130,66 +98,37 @@ const Register = () => {
               )}
             </div>
 
-            {/* Email or Phone */}
-            {registerMethod === "email" ? (
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Email Address
-                </label>
-                <input
-                  {...registerHook("email", {
-                    required: "Email is required",
-                    pattern: {
-                      value: /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-                      message: "Please enter a valid email",
-                    },
-                  })}
-                  type="email"
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-                  placeholder="you@example.com"
-                  disabled={loading}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Phone Number
-                </label>
-                <input
-                  {...registerHook("phone", {
-                    required: "Phone number is required",
-                    pattern: {
-                      value: /^[0-9]{10}$/,
-                      message: "Please enter a valid 10-digit phone number",
-                    },
-                  })}
-                  type="tel"
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-                  placeholder="9876543210"
-                  disabled={loading}
-                />
-                {errors.phone && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.phone.message}
-                  </p>
-                )}
-              </div>
-            )}
+            {/* Email */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Email Address
+              </label>
+              <input
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+                    message: "Please enter a valid email",
+                  },
+                })}
+                type="email"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="you@example.com"
+                disabled={loading}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
             {/* Password */}
             <PasswordInput
-              register={registerHook}
+              register={register}
               errors={errors}
               name="password"
               label="Password"
@@ -212,20 +151,17 @@ const Register = () => {
               >
                 Confirm Password
               </label>
-              <div className="relative">
-                <input
-                  {...registerHook("confirmPassword", {
-                    required: "Please confirm your password",
-                    validate: (value) =>
-                      value === watch("password") || "Passwords do not match",
-                  })}
-                  type="password"
-                  id="confirmPassword"
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-                  placeholder="••••••••"
-                  disabled={loading}
-                />
-              </div>
+              <input
+                {...register("confirmPassword", {
+                  required: "Please confirm your password",
+                  validate: (value) =>
+                    value === password || "Passwords do not match",
+                })}
+                type="password"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="••••••••"
+                disabled={loading}
+              />
               {errors.confirmPassword && (
                 <p className="text-red-500 text-xs mt-1">
                   {errors.confirmPassword.message}
@@ -238,7 +174,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:opacity-50"
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
@@ -257,17 +193,6 @@ const Register = () => {
 
           <div>
             <GoogleLoginButton buttonText="Sign Up with Google" />
-          </div>
-
-          <div className="text-xs text-gray-600 dark:text-gray-400 text-center">
-            By signing up, you agree to our{" "}
-            <Link to="/terms" className="text-lime-600 hover:text-lime-500">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link to="/privacy" className="text-lime-600 hover:text-lime-500">
-              Privacy Policy
-            </Link>
           </div>
         </form>
       </div>

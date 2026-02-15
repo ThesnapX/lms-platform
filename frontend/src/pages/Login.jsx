@@ -15,27 +15,21 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState("");
-  const [loginMethod, setLoginMethod] = useState("email"); // 'email' or 'phone'
+  const [loading, setLoading] = useState(false);
 
   const onSubmit = async (data) => {
     setLoginError("");
+    setLoading(true);
 
-    const result = await login(
-      loginMethod === "email" ? data.email : null,
-      loginMethod === "phone" ? data.phone : null,
-      data.password,
-    );
+    const result = await login(data.email, data.password);
+
+    setLoading(false);
 
     if (result.success) {
       navigate("/dashboard");
     } else {
       setLoginError(result.message);
     }
-  };
-
-  const handleGoogleLogin = () => {
-    // For now, redirect to Google OAuth
-    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
   };
 
   return (
@@ -59,30 +53,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Login Method Toggle */}
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={() => setLoginMethod("email")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              loginMethod === "email"
-                ? "bg-lime-500 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Email
-          </button>
-          <button
-            onClick={() => setLoginMethod("phone")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              loginMethod === "phone"
-                ? "bg-lime-500 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Phone
-          </button>
-        </div>
-
         {loginError && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
             {loginError}
@@ -90,61 +60,40 @@ const Login = () => {
         )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            {loginMethod === "email" ? (
-              <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
-                <input
-                  {...register("email", {
-                    required: "Email is required",
-                    pattern: {
-                      value: /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-                      message: "Please enter a valid email",
-                    },
-                  })}
-                  type="email"
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-                  placeholder="Email address"
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="phone" className="sr-only">
-                  Phone number
-                </label>
-                <input
-                  {...register("phone", {
-                    required: "Phone number is required",
-                    pattern: {
-                      value: /^[0-9]{10}$/,
-                      message: "Please enter a valid 10-digit phone number",
-                    },
-                  })}
-                  type="tel"
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-800"
-                  placeholder="Phone number (10 digits)"
-                />
-                {errors.phone && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.phone.message}
-                  </p>
-                )}
-              </div>
-            )}
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Email address
+              </label>
+              <input
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+                    message: "Please enter a valid email",
+                  },
+                })}
+                type="email"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder="you@example.com"
+                disabled={loading}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
             <PasswordInput
               register={register}
               errors={errors}
-              className="rounded-b-md"
               name="password"
               placeholder="Password"
+              disabled={loading}
               validation={{
                 required: "Password is required",
                 minLength: {
@@ -154,24 +103,23 @@ const Login = () => {
               }}
             />
 
-            <div className="flex items-center justify-between mt-2">
-              <div className="text-sm">
-                <Link
-                  to="/forgot-password"
-                  className="font-medium text-lime-600 hover:text-lime-500"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
+            <div className="flex items-center justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium text-lime-600 hover:text-lime-500"
+              >
+                Forgot password?
+              </Link>
             </div>
           </div>
 
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:opacity-50"
             >
-              Sign in
+              {loading ? "Signing in..." : "Sign in"}
             </button>
           </div>
 
@@ -187,7 +135,7 @@ const Login = () => {
           </div>
 
           <div>
-            <GoogleLoginButton buttonText="Sign In with Google" />
+            <GoogleLoginButton />
           </div>
         </form>
       </div>
