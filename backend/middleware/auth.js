@@ -2,50 +2,67 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const protect = async (req, res, next) => {
-  let token;
+  try {
+    let token;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    try {
-      // Get token from header
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
       token = req.headers.authorization.split(" ")[1];
+      console.log(
+        "Token received in protect middleware:",
+        token ? "Present" : "Missing",
+      );
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      try {
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("Decoded token:", decoded);
 
-      // Get user from token
-      req.user = await User.findById(decoded.id).select("-password");
+        // Get user from token
+        req.user = await User.findById(decoded.id).select("-password");
 
-      if (!req.user) {
-        return res
-          .status(401)
-          .json({ success: false, message: "User not found" });
+        if (!req.user) {
+          console.log("❌ User not found from token");
+          return res.status(401).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        console.log("✅ User authenticated in middleware:", req.user.email);
+        next();
+      } catch (jwtError) {
+        console.error("❌ JWT Verification Error:", jwtError.message);
+        return res.status(401).json({
+          success: false,
+          message: "Invalid token",
+        });
       }
-
-      next();
-    } catch (error) {
-      console.error(error);
-      return res
-        .status(401)
-        .json({ success: false, message: "Not authorized" });
+    } else {
+      console.log("❌ No authorization header found");
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized, no token",
+      });
     }
-  }
-
-  if (!token) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Not authorized, no token" });
+  } catch (error) {
+    console.error("❌ Protect middleware error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error in authentication",
+    });
   }
 };
 
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Not authorized" });
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
     }
 
     if (!roles.includes(req.user.role)) {

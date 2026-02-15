@@ -33,8 +33,13 @@ function App() {
               {/* Public */}
               <Route path="/" element={<Home />} />
               <Route path="/courses" element={<Courses />} />
-              <Route path="/courses/:id/preview" element={<CoursePreview />} />
+
+              {/* Main course route - for purchased users - MUST COME FIRST */}
               <Route path="/courses/:id" element={<SingleCourse />} />
+
+              {/* Preview route - for non-purchased users - MUST COME AFTER */}
+              <Route path="/courses/:id/preview" element={<CoursePreview />} />
+
               <Route path="/suggest-course" element={<SuggestCourse />} />
               <Route path="/about" element={<About />} />
               <Route path="/login" element={<Login />} />

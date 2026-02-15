@@ -7,18 +7,21 @@ const axiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add token
+// Function to get token - helps with debugging
+const getToken = () => localStorage.getItem("token");
+
+// Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     console.log(`📤 ${config.method.toUpperCase()} ${config.url}`);
-    console.log("   Token present in interceptor:", !!token);
+    console.log("Token present:", !!token);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("   ✅ Token added to headers");
+      console.log("✅ Token added to headers:", token.substring(0, 20) + "...");
     } else {
-      console.log("   ❌ No token found in interceptor");
+      console.log("❌ No token found in localStorage");
     }
 
     return config;
@@ -43,16 +46,20 @@ axiosInstance.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      console.log("🔒 401 Unauthorized - Token might be invalid or expired");
+      console.log("🔒 401 Unauthorized - Token might be invalid");
       localStorage.removeItem("token");
-      // Redirect to login if not already there
-      if (!window.location.pathname.includes("/login")) {
-        window.location.href = "/login";
-      }
+      window.location.href = "/login";
     }
 
     return Promise.reject(error);
   },
 );
+
+// Set the token in default headers immediately
+const token = getToken();
+if (token) {
+  axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  console.log("✅ Token set in default headers on initialization");
+}
 
 export default axiosInstance;

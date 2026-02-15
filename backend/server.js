@@ -4,13 +4,10 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const errorHandler = require("./middleware/errorMiddleware");
-const { protect } = require("./middleware/auth"); // Add this import
-const Course = require("./models/Course"); // Add this import
+const { protect } = require("./middleware/auth");
+const User = require("./models/User");
 
-// Load env vars
 dotenv.config();
-
-// Connect to database
 connectDB();
 
 const app = express();
@@ -19,13 +16,21 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Enable CORS
+// IMPORTANT: Proper CORS configuration
 app.use(
   cors({
     origin: "http://localhost:5173",
     credentials: true,
+    exposedHeaders: ["Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   }),
 );
+
+// Load env vars
+dotenv.config();
+
+// Connect to database
+connectDB();
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -135,4 +140,46 @@ const server = app.listen(PORT, () => {
 process.on("unhandledRejection", (err, promise) => {
   console.log(`Error: ${err.message}`);
   server.close(() => process.exit(1));
+});
+
+// Add this temporary test endpoint
+app.get("/api/debug/headers", (req, res) => {
+  res.json({
+    headers: req.headers,
+    authHeader: req.headers.authorization || "No authorization header",
+    hasAuth: !!req.headers.authorization,
+  });
+});
+
+// ULTRA SIMPLE TEST ENDPOINT - NO COMPLEX LOGIC
+app.get("/api/test-course/:id", protect, async (req, res) => {
+  try {
+    console.log("🔍 SIMPLE TEST - User authenticated:", !!req.user);
+    console.log("User ID:", req.user?._id);
+
+    const user = await User.findById(req.user._id);
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.json({ error: "Course not found" });
+    }
+
+    // Simple check - convert all to strings
+    const purchasedIds = user.purchasedCourses.map((id) => id.toString());
+    const hasAccess = purchasedIds.includes(req.params.id);
+
+    res.json({
+      success: true,
+      userId: user._id.toString(),
+      userEmail: user.email,
+      courseId: req.params.id,
+      purchasedIds: purchasedIds,
+      hasAccess: hasAccess,
+      message: hasAccess
+        ? "✅ USER HAS ACCESS"
+        : "❌ USER DOES NOT HAVE ACCESS",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });

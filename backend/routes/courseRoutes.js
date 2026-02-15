@@ -8,19 +8,21 @@ const {
   deleteCourse,
   markTopicComplete,
   addComment,
-  addReview,
+  saveLastWatched,
+  purchaseCourse,
 } = require("../controllers/courseController");
 const { protect, authorize } = require("../middleware/auth");
 const requireEmailVerification = require("../middleware/verifiedEmail");
 
-// Public routes
+// Public routes - NO protect middleware on getCourse
 router.get("/", getCourses);
-router.get("/:id", getCourse);
+router.get("/:id", getCourse); // <-- THIS IS KEY - NO protect
 
-// Protected routes
+// Protected routes - require authentication
+router.get("/:id/purchase", protect, requireEmailVerification, purchaseCourse);
 router.put("/:courseId/topics/:topicId/complete", protect, markTopicComplete);
 router.post("/:courseId/topics/:topicId/comments", protect, addComment);
-router.post("/:courseId/reviews", protect, addReview);
+router.post("/:courseId/progress/last-watched", protect, saveLastWatched);
 
 // Admin/Editor routes
 router.post("/", protect, authorize("editor", "admin"), createCourse);

@@ -1,6 +1,6 @@
 const Course = require("../models/Course");
 const User = require("../models/User");
-
+const jwt = require("jsonwebtoken");
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Public
@@ -28,9 +28,39 @@ const getCourses = async (req, res) => {
 
 // @desc    Get single course
 // @route   GET /api/courses/:id
-// @access  Public
+// @access  Public (with optional authentication)
 const getCourse = async (req, res) => {
   try {
+    console.log("\n========== COURSE ACCESS CHECK ==========");
+    console.log("Course ID requested:", req.params.id);
+
+    // Check if user is authenticated via the token in headers
+    let userId = null;
+    let userRole = null;
+    let userPurchased = [];
+
+    // Manually check for token without using protect middleware
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+        if (user) {
+          userId = user._id;
+          userRole = user.role;
+          userPurchased = user.purchasedCourses.map((id) => id.toString());
+          console.log("✅ User authenticated manually:", user.email);
+          console.log("User ID:", userId.toString());
+          console.log("User role:", userRole);
+        }
+      } catch (jwtError) {
+        console.log("⚠️ Token invalid, treating as public request");
+      }
+    } else {
+      console.log("❌ No auth header - public access only");
+    }
+
     const course = await Course.findById(req.params.id)
       .populate("createdBy", "name")
       .populate({
@@ -45,28 +75,42 @@ const getCourse = async (req, res) => {
       });
     }
 
+    console.log("Course found:", course.title);
+    console.log("Course ID from DB:", course._id.toString());
+
     let hasAccess = false;
     let userProgress = null;
 
-    if (req.user) {
-      const user = await User.findById(req.user._id);
-
-      const purchasedIds = user.purchasedCourses.map((id) => id.toString());
+    // If user is authenticated, check access
+    if (userId) {
       const courseId = course._id.toString();
 
-      hasAccess =
-        purchasedIds.includes(courseId) ||
-        req.user.role === "admin" ||
-        req.user.role === "editor";
+      console.log("User purchased courses:", userPurchased);
+      console.log("Looking for course ID:", courseId);
+
+      const hasPurchased = userPurchased.includes(courseId);
+      const isStaff = userRole === "admin" || userRole === "editor";
+
+      hasAccess = hasPurchased || isStaff;
+
+      console.log("Has purchased:", hasPurchased);
+      console.log("Is staff:", isStaff);
+      console.log("Final hasAccess:", hasAccess);
 
       if (hasAccess) {
+        // Get user progress
+        const user = await User.findById(userId);
         userProgress = user.courseProgress.find(
           (p) => p.courseId?.toString() === courseId,
         );
       }
+    } else {
+      console.log("No authenticated user - public access only");
     }
 
     const courseData = course.toObject();
+
+    console.log("========== END CHECK ==========\n");
 
     res.json({
       success: true,
@@ -505,6 +549,88 @@ const addReview = async (req, res) => {
   }
 };
 
+// @desc    Save last watched topic
+// @route   POST /api/courses/:courseId/progress/last-watched
+// @access  Private
+const saveLastWatched = async (req, res) => {
+  try {
+    const { topicId } = req.body;
+    const { courseId } = req.params;
+
+    const user = await User.findById(req.user._id);
+
+    let progress = user.courseProgress.find(
+      (p) => p.courseId?.toString() === courseId,
+    );
+
+    if (!progress) {
+      progress = {
+        courseId,
+        completedTopics: [],
+        lastWatchedTopic: topicId,
+        progressPercentage: 0,
+      };
+      user.courseProgress.push(progress);
+    } else {
+      progress.lastWatchedTopic = topicId;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      progress,
+    });
+  } catch (error) {
+    console.error("Error saving last watched:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Purchase course (initiate payment)
+// @route   GET /api/courses/:id/purchase
+// @access  Private
+const purchaseCourse = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    // Check if user already owns this course
+    const user = await User.findById(req.user._id);
+    if (user.purchasedCourses.includes(course._id)) {
+      return res.status(400).json({
+        success: false,
+        message: "You already own this course",
+      });
+    }
+
+    res.json({
+      success: true,
+      course: {
+        _id: course._id,
+        title: course.title,
+        price: course.price,
+        description: course.shortDescription,
+      },
+    });
+  } catch (error) {
+    console.error("Purchase course error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getCourses,
   getCourse,
@@ -514,5 +640,6 @@ module.exports = {
   markTopicComplete,
   addComment,
   addReview,
-  // purchaseCourse,
+  saveLastWatched,
+  purchaseCourse,
 };

@@ -23,7 +23,6 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    // Show verification banner if user exists and email is not verified
     if (user) {
       setShowVerificationBanner(!user.isEmailVerified);
     }
@@ -31,7 +30,6 @@ const Dashboard = () => {
 
   const fetchUserData = async () => {
     try {
-      // First refresh user data from auth/me
       if (refreshUser) {
         await refreshUser();
       }
@@ -73,7 +71,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="container-custom">
-        {/* Email Verification Banner - Only show if email is NOT verified */}
+        {/* Email Verification Banner */}
         {showVerificationBanner && (
           <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded">
             <div className="flex items-start">
@@ -221,7 +219,7 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        {/* Actions */}
+                        {/* Actions - FIXED: Link to actual course page, not preview */}
                         <div className="flex space-x-2">
                           <Link
                             to={`/courses/${course._id}`}
