@@ -313,7 +313,7 @@ const AddCourseModal = ({ isOpen, onClose, onCourseAdded }) => {
   const uploadToCloudinary = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", "lms_unsigned_preset");
+    formData.append("upload_preset", "course_unsigned_preset");
     formData.append("folder", "course/thumbnails");
 
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
