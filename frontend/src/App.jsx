@@ -9,6 +9,7 @@ import RoleBasedRoute from "./components/auth/RoleBasedRoute";
 import Home from "./pages/Home";
 import Courses from "./pages/Courses";
 import SingleCourse from "./pages/SingleCourse";
+import CoursePreview from "./pages/CoursePreview";
 import SuggestCourse from "./pages/SuggestCourse";
 import About from "./pages/About";
 import Dashboard from "./pages/Dashboard";
@@ -21,37 +22,31 @@ import ResendVerification from "./pages/ResendVerification";
 import PaymentPage from "./pages/PaymentPage";
 import AdminDashboard from "./pages/admin/Dashboard";
 import EditorDashboard from "./pages/editor/Dashboard";
-import AuthTest from "./pages/AuthTest";
 
 function App() {
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ThemeProvider>
         <AuthProvider>
           <Layout>
             <Routes>
-              {/* Public Routes */}
+              {/* Public */}
               <Route path="/" element={<Home />} />
               <Route path="/courses" element={<Courses />} />
+              <Route path="/courses/:id/preview" element={<CoursePreview />} />
               <Route path="/courses/:id" element={<SingleCourse />} />
               <Route path="/suggest-course" element={<SuggestCourse />} />
               <Route path="/about" element={<About />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-
               <Route
                 path="/reset-password/:token"
                 element={<ResetPassword />}
               />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
-              {/* Protected Routes - Any authenticated user */}
+              {/* Protected */}
               <Route
                 path="/dashboard"
                 element={
@@ -77,7 +72,7 @@ function App() {
                 }
               />
 
-              {/* Admin Only Routes */}
+              {/* Admin */}
               <Route
                 path="/admin"
                 element={
@@ -86,8 +81,6 @@ function App() {
                   </RoleBasedRoute>
                 }
               />
-
-              {/* Editor Routes - Accessible by both editor and admin */}
               <Route
                 path="/editor"
                 element={
@@ -96,7 +89,6 @@ function App() {
                   </RoleBasedRoute>
                 }
               />
-              <Route path="/auth-test" element={<AuthTest />} />
             </Routes>
           </Layout>
         </AuthProvider>

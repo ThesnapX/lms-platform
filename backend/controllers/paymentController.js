@@ -1,7 +1,7 @@
 const Payment = require("../models/Payment");
 const User = require("../models/User");
 const Course = require("../models/Course");
-
+const { sendPurchaseEmail } = require("../services/emailService");
 // @desc    Create payment request
 // @route   POST /api/payments
 // @access  Private
@@ -143,13 +143,11 @@ const approvePayment = async (req, res) => {
     payment.reviewedBy = req.user._id;
     payment.reviewedAt = Date.now();
     await payment.save();
+    await sendPurchaseEmail(user, payment.course);
 
     // Grant course access to user
     const user = await User.findById(payment.user._id);
 
-    console.log("\nUser before update:");
-    console.log("- User ID:", user._id);
-    console.log("- Email:", user.email);
     console.log("- Purchased courses count:", user.purchasedCourses.length);
 
     const courseIdStr = payment.course._id.toString();
@@ -158,8 +156,6 @@ const approvePayment = async (req, res) => {
     const hasCourse = user.purchasedCourses.some(
       (id) => id.toString() === courseIdStr,
     );
-
-    console.log("Already has this course?", hasCourse);
 
     if (!hasCourse) {
       user.purchasedCourses.push(payment.course._id);

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -7,17 +8,34 @@ import {
   UserCircleIcon,
   AcademicCapIcon,
   ArrowRightOnRectangleIcon,
+  Bars3Icon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout, isAdmin, isEditor } = useAuth();
   const { darkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
+
+  const navLinks = [
+    { to: "/", label: "Home" },
+    { to: "/courses", label: "Courses" },
+    { to: "/suggest-course", label: "Suggest" },
+    { to: "/about", label: "About" },
+  ];
+
+  if (isAdmin) {
+    navLinks.push({ to: "/admin", label: "Admin" });
+  }
+  if (isEditor && !isAdmin) {
+    navLinks.push({ to: "/editor", label: "Editor" });
+  }
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-md sticky top-0 z-50">
@@ -26,96 +44,59 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <AcademicCapIcon className="h-8 w-8 text-lime-500" />
-            <span className="font-heading font-bold text-xl text-gray-900 dark:text-white">
+            <span className="font-heading font-bold text-xl">
               LMS<span className="text-lime-500">.io</span>
             </span>
           </Link>
 
-          {/* Navigation Links */}
+          {/* Desktop Nav */}
           <div className="hidden md:flex space-x-8">
-            <Link
-              to="/"
-              className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500 transition-colors"
-            >
-              Home
-            </Link>
-            <Link
-              to="/courses"
-              className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500 transition-colors"
-            >
-              Courses
-            </Link>
-            <Link
-              to="/suggest-course"
-              className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500 transition-colors"
-            >
-              Suggest Course
-            </Link>
-            <Link
-              to="/about"
-              className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500 transition-colors"
-            >
-              About
-            </Link>
-
-            {/* Admin Link - Only for Admin */}
-            {isAdmin && (
+            {navLinks.map((link) => (
               <Link
-                to="/admin"
-                className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500 transition-colors"
+                key={link.to}
+                to={link.to}
+                className="text-gray-700 dark:text-gray-200 hover:text-lime-500 transition"
               >
-                Admin
+                {link.label}
               </Link>
-            )}
-
-            {/* Editor Link - Only for pure Editors (not admins) */}
-            {isEditor && !isAdmin && (
-              <Link
-                to="/editor"
-                className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500 transition-colors"
-              >
-                Editor
-              </Link>
-            )}
+            ))}
           </div>
 
-          {/* Right Side - Theme Toggle & Auth */}
+          {/* Right side */}
           <div className="flex items-center space-x-4">
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               {darkMode ? (
-                <SunIcon className="h-5 w-5 text-yellow-500" />
+                <SunIcon className="h-5 w-5" />
               ) : (
-                <MoonIcon className="h-5 w-5 text-gray-700" />
+                <MoonIcon className="h-5 w-5" />
               )}
             </button>
 
-            {/* Auth Links */}
             {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
+              <>
                 <Link
                   to="/dashboard"
-                  className="flex items-center space-x-2 text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500"
+                  className="hidden md:flex items-center space-x-2 text-gray-700 dark:text-gray-200"
                 >
                   <UserCircleIcon className="h-6 w-6" />
-                  <span className="hidden md:inline">{user?.name}</span>
+                  <span>{user?.name}</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-2 text-gray-700 dark:text-gray-200 hover:text-red-500 dark:hover:text-red-500"
+                  className="hidden md:flex items-center space-x-2 text-gray-700 hover:text-red-500"
                 >
                   <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                  <span className="hidden md:inline">Logout</span>
+                  <span>Logout</span>
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center space-x-4">
                 <Link
                   to="/login"
-                  className="text-gray-700 dark:text-gray-200 hover:text-lime-500 dark:hover:text-lime-500"
+                  className="text-gray-700 dark:text-gray-200 hover:text-lime-500"
                 >
                   Login
                 </Link>
@@ -124,8 +105,73 @@ const Navbar = () => {
                 </Link>
               </div>
             )}
+
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded hover:bg-gray-100"
+            >
+              {mobileMenuOpen ? (
+                <XMarkIcon className="h-6 w-6" />
+              ) : (
+                <Bars3Icon className="h-6 w-6" />
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 border-t">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block py-2 text-gray-700 dark:text-gray-200 hover:text-lime-500"
+              >
+                {link.label}
+              </Link>
+            ))}
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-gray-700 dark:text-gray-200"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left py-2 text-gray-700 hover:text-red-500"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-gray-700 dark:text-gray-200"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 btn-primary text-sm text-center mt-2"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </nav>
   );

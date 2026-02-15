@@ -1,6 +1,5 @@
 const Course = require("../models/Course");
 const User = require("../models/User");
-const { uploadToCloudinary } = require("../utils/cloudinary");
 
 // @desc    Get all courses
 // @route   GET /api/courses
@@ -9,19 +8,9 @@ const getCourses = async (req, res) => {
   try {
     const courses = await Course.find({})
       .select(
-        "title description price discountedPrice discountPercent instructor thumbnail createdBy totalTopics",
+        "title shortDescription instructor tag categories price discountedPrice discountPercent thumbnail averageRating totalRatings totalHours forWhom prerequisite",
       )
       .populate("createdBy", "name");
-
-    console.log(`📚 Sending ${courses.length} courses`);
-
-    // Log first course to verify instructor
-    if (courses.length > 0) {
-      console.log("Sample course data:", {
-        title: courses[0].title,
-        instructor: courses[0].instructor,
-      });
-    }
 
     res.json({
       success: true,
@@ -39,22 +28,15 @@ const getCourses = async (req, res) => {
 
 // @desc    Get single course
 // @route   GET /api/courses/:id
-// @access  Public/Private (depends on access)
+// @access  Public
 const getCourse = async (req, res) => {
   try {
-    console.log("\n========== SIMPLIFIED COURSE ACCESS ==========");
-    console.log("Course ID:", req.params.id);
-    console.log("User authenticated:", !!req.user);
-
-    if (req.user) {
-      console.log("User ID:", req.user._id.toString());
-      console.log("User Role:", req.user.role);
-    }
-
-    const course = await Course.findById(req.params.id).populate(
-      "createdBy",
-      "name",
-    );
+    const course = await Course.findById(req.params.id)
+      .populate("createdBy", "name")
+      .populate({
+        path: "chapters.topics.comments.user",
+        select: "name",
+      });
 
     if (!course) {
       return res.status(404).json({
@@ -66,83 +48,25 @@ const getCourse = async (req, res) => {
     let hasAccess = false;
     let userProgress = null;
 
-    // If user is authenticated, check if they have access
     if (req.user) {
-      // Find the user
       const user = await User.findById(req.user._id);
 
-      if (user) {
-        console.log("User email:", user.email);
-        console.log("User purchasedCourses raw:", user.purchasedCourses);
+      const purchasedIds = user.purchasedCourses.map((id) => id.toString());
+      const courseId = course._id.toString();
 
-        // Convert purchasedCourses IDs to strings for comparison
-        const purchasedIds = user.purchasedCourses.map((id) => id.toString());
-        const courseId = course._id.toString();
+      hasAccess =
+        purchasedIds.includes(courseId) ||
+        req.user.role === "admin" ||
+        req.user.role === "editor";
 
-        console.log("Purchased IDs:", purchasedIds);
-        console.log("Looking for course ID:", courseId);
-        const courseInPurchased = purchasedIds.includes(courseId);
-        console.log("Course found in purchased?", courseInPurchased);
-
-        // Check if user has purchased this course
-        const hasPurchased = courseInPurchased;
-
-        // Check if user is admin or editor
-        const isStaff = req.user.role === "admin" || req.user.role === "editor";
-
-        hasAccess = hasPurchased || isStaff;
-        console.log("Has purchased:", hasPurchased);
-        console.log("Is staff:", isStaff);
-        console.log("Final hasAccess:", hasAccess);
-
-        if (hasAccess) {
-          // Find progress - there might be multiple, get the first one
-          const progresses = user.courseProgress.filter(
-            (p) => p.courseId?.toString() === courseId,
-          );
-
-          console.log("Found progress entries:", progresses.length);
-
-          if (progresses.length > 0) {
-            userProgress = progresses[0];
-            console.log("Using progress:", userProgress);
-
-            // If there are multiple, log a warning
-            if (progresses.length > 1) {
-              console.log(
-                "⚠️ Multiple progress entries found. Using first one.",
-              );
-            }
-          } else {
-            console.log("No progress found, creating one...");
-            // Create progress if it doesn't exist
-            user.courseProgress.push({
-              courseId: course._id,
-              completedTopics: [],
-              progressPercentage: 0,
-            });
-            await user.save();
-            userProgress = user.courseProgress.find(
-              (p) => p.courseId?.toString() === courseId,
-            );
-          }
-        }
-      } else {
-        console.log("❌ User not found in database");
+      if (hasAccess) {
+        userProgress = user.courseProgress.find(
+          (p) => p.courseId?.toString() === courseId,
+        );
       }
     }
 
-    let courseData = course.toObject();
-
-    // If user doesn't have access, filter only preview topics
-    if (!hasAccess) {
-      courseData.chapters = courseData.chapters.map((chapter) => ({
-        ...chapter,
-        topics: chapter.topics.filter((topic) => topic.isPreview),
-      }));
-    }
-
-    console.log("========== END ==========\n");
+    const courseData = course.toObject();
 
     res.json({
       success: true,
@@ -164,12 +88,17 @@ const getCourse = async (req, res) => {
 // @access  Private (Editor/Admin)
 const createCourse = async (req, res) => {
   try {
-    console.log("📝 Creating course with pricing...");
-
     const {
       title,
-      description,
+      shortDescription,
+      longDescription,
       instructor,
+      tag,
+      categories,
+      totalHours,
+      forWhom,
+      prerequisite,
+      previewVideoLink,
       price,
       discountedPrice,
       thumbnail,
@@ -177,14 +106,24 @@ const createCourse = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!title || !description || !price || !thumbnail || !chapters) {
+    if (
+      !title ||
+      !shortDescription ||
+      !longDescription ||
+      !instructor ||
+      !totalHours ||
+      !forWhom ||
+      !previewVideoLink ||
+      !price ||
+      !thumbnail ||
+      !chapters
+    ) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
       });
     }
 
-    // Validate discounted price if provided
     if (discountedPrice && discountedPrice >= price) {
       return res.status(400).json({
         success: false,
@@ -192,21 +131,25 @@ const createCourse = async (req, res) => {
       });
     }
 
-    // Calculate discount percent
     let discountPercent = 0;
     if (discountedPrice && price > 0) {
       discountPercent = Math.round(((price - discountedPrice) / price) * 100);
     }
 
-    // Parse chapters if needed
     const parsedChapters =
       typeof chapters === "string" ? JSON.parse(chapters) : chapters;
 
-    // Create course
     const courseData = {
       title,
-      description,
+      shortDescription,
+      longDescription,
       instructor,
+      tag: tag || "",
+      categories: categories || [],
+      totalHours: parseFloat(totalHours),
+      forWhom,
+      prerequisite: prerequisite || "No prerequisites required",
+      previewVideoLink,
       price: parseFloat(price),
       discountedPrice: discountedPrice
         ? parseFloat(discountedPrice)
@@ -221,22 +164,13 @@ const createCourse = async (req, res) => {
     };
 
     const course = await Course.create(courseData);
-    console.log("✅ Course created successfully:", course._id);
-    console.log(
-      "💰 Price:",
-      course.price,
-      "Discounted:",
-      course.discountedPrice,
-      "Discount:",
-      course.discountPercent + "%",
-    );
 
     res.status(201).json({
       success: true,
       course,
     });
   } catch (error) {
-    console.error("❌ Course creation error:", error);
+    console.error("Course creation error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -249,10 +183,7 @@ const createCourse = async (req, res) => {
 // @access  Private (Editor/Admin)
 const updateCourse = async (req, res) => {
   try {
-    console.log("📝 Updating course:", req.params.id);
-    console.log("Update data:", req.body);
-
-    let course = await Course.findById(req.params.id);
+    const course = await Course.findById(req.params.id);
 
     if (!course) {
       return res.status(404).json({
@@ -263,22 +194,41 @@ const updateCourse = async (req, res) => {
 
     const {
       title,
-      description,
+      shortDescription,
+      longDescription,
       instructor,
+      tag,
+      categories,
+      totalHours,
+      forWhom,
+      prerequisite,
+      previewVideoLink,
       price,
       discountedPrice,
       thumbnail,
       chapters,
     } = req.body;
 
-    // Update fields
     if (title) course.title = title;
-    if (description) course.description = description;
+    if (shortDescription) course.shortDescription = shortDescription;
+    if (longDescription) course.longDescription = longDescription;
     if (instructor) course.instructor = instructor;
+    if (tag !== undefined) course.tag = tag;
+    if (categories) course.categories = categories;
+    if (totalHours) course.totalHours = parseFloat(totalHours);
+    if (forWhom) course.forWhom = forWhom;
+    if (prerequisite !== undefined) course.prerequisite = prerequisite;
+    if (previewVideoLink) course.previewVideoLink = previewVideoLink;
 
-    if (price) course.price = parseFloat(price);
+    if (price) {
+      course.price = parseFloat(price);
 
-    // Handle discounted price
+      if (course.discountedPrice && course.discountedPrice >= course.price) {
+        course.discountedPrice = undefined;
+        course.discountPercent = 0;
+      }
+    }
+
     if (discountedPrice !== undefined) {
       if (discountedPrice && discountedPrice >= course.price) {
         return res.status(400).json({
@@ -290,7 +240,6 @@ const updateCourse = async (req, res) => {
         ? parseFloat(discountedPrice)
         : undefined;
 
-      // Recalculate discount percent
       if (course.discountedPrice && course.price > 0) {
         course.discountPercent = Math.round(
           ((course.price - course.discountedPrice) / course.price) * 100,
@@ -300,7 +249,6 @@ const updateCourse = async (req, res) => {
       }
     }
 
-    // Update thumbnail if provided
     if (thumbnail && thumbnail.url) {
       course.thumbnail = {
         public_id: thumbnail.public_id || course.thumbnail.public_id,
@@ -308,7 +256,6 @@ const updateCourse = async (req, res) => {
       };
     }
 
-    // Update chapters if provided
     if (chapters) {
       course.chapters =
         typeof chapters === "string" ? JSON.parse(chapters) : chapters;
@@ -316,14 +263,12 @@ const updateCourse = async (req, res) => {
 
     await course.save();
 
-    console.log("✅ Course updated successfully");
-
     res.json({
       success: true,
       course,
     });
   } catch (error) {
-    console.error("❌ Course update error:", error);
+    console.error("Course update error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -359,7 +304,7 @@ const deleteCourse = async (req, res) => {
   }
 };
 
-// @desc    Mark topic as completed
+// @desc    Mark topic complete
 // @route   PUT /api/courses/:courseId/topics/:topicId/complete
 // @access  Private
 const markTopicComplete = async (req, res) => {
@@ -367,38 +312,37 @@ const markTopicComplete = async (req, res) => {
     const user = await User.findById(req.user._id);
     const { courseId, topicId } = req.params;
 
-    let courseProgress = user.courseProgress.find(
+    let progress = user.courseProgress.find(
       (p) => p.courseId?.toString() === courseId,
     );
 
-    if (!courseProgress) {
-      courseProgress = {
+    if (!progress) {
+      progress = {
         courseId,
         completedTopics: [],
         lastWatchedTopic: topicId,
         progressPercentage: 0,
       };
-      user.courseProgress.push(courseProgress);
+      user.courseProgress.push(progress);
     }
 
-    if (!courseProgress.completedTopics.includes(topicId)) {
-      courseProgress.completedTopics.push(topicId);
+    if (!progress.completedTopics.includes(topicId)) {
+      progress.completedTopics.push(topicId);
     }
 
-    courseProgress.lastWatchedTopic = topicId;
+    progress.lastWatchedTopic = topicId;
 
     const course = await Course.findById(courseId);
-    const totalTopics = course?.totalTopics || 1;
-    const completedCount = courseProgress.completedTopics.length;
-    courseProgress.progressPercentage = Math.round(
-      (completedCount / totalTopics) * 100,
+    const completedCount = progress.completedTopics.length;
+    progress.progressPercentage = Math.round(
+      (completedCount / course.totalTopics) * 100,
     );
 
     await user.save();
 
     res.json({
       success: true,
-      progress: courseProgress,
+      progress,
     });
   } catch (error) {
     res.status(500).json({
@@ -408,7 +352,7 @@ const markTopicComplete = async (req, res) => {
   }
 };
 
-// @desc    Add comment to topic
+// @desc    Add comment
 // @route   POST /api/courses/:courseId/topics/:topicId/comments
 // @access  Private
 const addComment = async (req, res) => {
@@ -432,13 +376,31 @@ const addComment = async (req, res) => {
 
     for (let i = 0; i < course.chapters.length; i++) {
       const chapter = course.chapters[i];
-      for (let j = 0; j < chapter.topics.length; j++) {
+      for (let j = 0; j < (chapter.topics || []).length; j++) {
         const topic = chapter.topics[j];
         if (topic._id.toString() === topicId) {
           foundTopic = topic;
           chapterIndex = i;
           topicIndex = j;
           break;
+        }
+      }
+      if (foundTopic) break;
+
+      // Check subchapters
+      if (chapter.subChapters) {
+        for (let s = 0; s < chapter.subChapters.length; s++) {
+          const sub = chapter.subChapters[s];
+          for (let j = 0; j < (sub.topics || []).length; j++) {
+            const topic = sub.topics[j];
+            if (topic._id.toString() === topicId) {
+              foundTopic = topic;
+              chapterIndex = i;
+              topicIndex = j;
+              break;
+            }
+          }
+          if (foundTopic) break;
         }
       }
       if (foundTopic) break;
@@ -451,7 +413,6 @@ const addComment = async (req, res) => {
       });
     }
 
-    // Add comment
     const newComment = {
       user: req.user._id,
       message,
@@ -461,32 +422,37 @@ const addComment = async (req, res) => {
     foundTopic.comments.push(newComment);
     await course.save();
 
-    // Fetch the updated course with populated user data
-    const updatedCourse = await Course.findById(courseId).populate({
+    const populatedCourse = await Course.findById(courseId).populate({
       path: "chapters.topics.comments.user",
-      select: "name email",
+      select: "name",
     });
 
-    // Get the newly added comment with populated user data
-    const populatedComment =
-      updatedCourse.chapters[chapterIndex].topics[topicIndex].comments.pop();
-
-    console.log("✅ Comment added:", populatedComment);
+    // Get the added comment
+    let addedComment = null;
+    for (const ch of populatedCourse.chapters) {
+      for (const t of ch.topics || []) {
+        if (t._id.toString() === topicId) {
+          addedComment = t.comments[t.comments.length - 1];
+          break;
+        }
+      }
+      if (addedComment) break;
+    }
 
     res.status(201).json({
       success: true,
       comment: {
-        _id: populatedComment._id,
-        message: populatedComment.message,
-        createdAt: populatedComment.createdAt,
+        _id: addedComment._id,
+        message: addedComment.message,
+        createdAt: addedComment.createdAt,
         user: {
-          _id: populatedComment.user._id,
-          name: populatedComment.user.name,
+          _id: addedComment.user._id,
+          name: addedComment.user.name,
         },
       },
     });
   } catch (error) {
-    console.error("❌ Error adding comment:", error);
+    console.error("Error adding comment:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -494,13 +460,15 @@ const addComment = async (req, res) => {
   }
 };
 
-// @desc    Purchase course (initiate payment)
-// @route   GET /api/courses/:id/purchase
+// @desc    Add review
+// @route   POST /api/courses/:courseId/reviews
 // @access  Private
-const purchaseCourse = async (req, res) => {
+const addReview = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
+    const { rating, comment } = req.body;
+    const { courseId } = req.params;
 
+    const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -508,26 +476,28 @@ const purchaseCourse = async (req, res) => {
       });
     }
 
-    // Check if user already owns this course
     const user = await User.findById(req.user._id);
-    if (user.purchasedCourses.includes(course._id)) {
-      return res.status(400).json({
+    if (!user.purchasedCourses.includes(course._id)) {
+      return res.status(403).json({
         success: false,
-        message: "You already own this course",
+        message: "Only enrolled users can review",
       });
     }
 
+    // Update average rating
+    const total = course.totalRatings * course.averageRating + rating;
+    course.totalRatings += 1;
+    course.averageRating = total / course.totalRatings;
+
+    await course.save();
+
     res.json({
       success: true,
-      course: {
-        _id: course._id,
-        title: course.title,
-        price: course.price,
-        description: course.description,
-      },
+      averageRating: course.averageRating,
+      totalRatings: course.totalRatings,
     });
   } catch (error) {
-    console.error("Purchase course error:", error);
+    console.error("Review error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -543,5 +513,6 @@ module.exports = {
   deleteCourse,
   markTopicComplete,
   addComment,
-  purchaseCourse,
+  addReview,
+  // purchaseCourse,
 };

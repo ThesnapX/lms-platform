@@ -1,5 +1,11 @@
 const mongoose = require("mongoose");
 
+const resourceSchema = new mongoose.Schema({
+  title: String,
+  url: String,
+  fileType: String,
+});
+
 const topicSchema = new mongoose.Schema(
   {
     title: {
@@ -19,17 +25,7 @@ const topicSchema = new mongoose.Schema(
         "Please add a valid YouTube link",
       ],
     },
-    resources: [
-      {
-        title: String,
-        url: String,
-        fileType: String,
-      },
-    ],
-    isPreview: {
-      type: Boolean,
-      default: false,
-    },
+    resources: [resourceSchema],
     comments: [
       {
         user: {
@@ -49,12 +45,23 @@ const topicSchema = new mongoose.Schema(
   },
 );
 
+const subChapterSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+  },
+  description: String,
+  topics: [topicSchema],
+});
+
 const chapterSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
   },
+  description: String,
   topics: [topicSchema],
+  subChapters: [subChapterSchema],
   order: {
     type: Number,
     default: 0,
@@ -69,17 +76,63 @@ const courseSchema = new mongoose.Schema(
       trim: true,
       unique: true,
     },
-    description: {
+    shortDescription: {
       type: String,
-      required: [true, "Please add a description"],
+      required: [true, "Please add a short description"],
     },
-    // Instructor field (custom text, not linked to user)
+    longDescription: {
+      type: String,
+      required: [true, "Please add a detailed description"],
+    },
     instructor: {
       type: String,
       required: [true, "Please add instructor name"],
       trim: true,
     },
-    // Pricing fields
+    tag: {
+      type: String,
+      trim: true,
+    },
+    categories: [
+      {
+        type: String,
+        enum: [
+          "Web Development",
+          "Mobile Development",
+          "Data Science",
+          "DevOps",
+          "Design",
+          "Business",
+          "Marketing",
+          "AI & Machine Learning",
+          "Cloud Computing",
+          "Cybersecurity",
+          "Other",
+        ],
+      },
+    ],
+    totalHours: {
+      type: Number,
+      required: [true, "Please add total hours"],
+      min: 0,
+    },
+    forWhom: {
+      type: String,
+      enum: ["Beginner", "Intermediate", "Expert", "All Levels"],
+      required: true,
+    },
+    prerequisite: {
+      type: String,
+      default: "No prerequisites required",
+    },
+    previewVideoLink: {
+      type: String,
+      required: [true, "Please add a preview video link"],
+      match: [
+        /^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/,
+        "Please add a valid YouTube link",
+      ],
+    },
     price: {
       type: Number,
       required: [true, "Please add a price"],
@@ -118,6 +171,16 @@ const courseSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    totalRatings: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -126,14 +189,19 @@ const courseSchema = new mongoose.Schema(
 
 // Calculate total topics and discount percent before saving
 courseSchema.pre("save", function (next) {
-  // Calculate total topics
   let total = 0;
+  const countTopics = (topics) => topics.length;
+
   this.chapters.forEach((chapter) => {
-    total += chapter.topics.length;
+    total += countTopics(chapter.topics || []);
+    if (chapter.subChapters) {
+      chapter.subChapters.forEach((sub) => {
+        total += countTopics(sub.topics || []);
+      });
+    }
   });
   this.totalTopics = total;
 
-  // Calculate discount percent if discounted price is set
   if (this.discountedPrice && this.price > 0) {
     this.discountPercent = Math.round(
       ((this.price - this.discountedPrice) / this.price) * 100,

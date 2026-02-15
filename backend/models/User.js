@@ -10,24 +10,13 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: function () {
-        return !this.phone; // Email required if phone not provided
-      },
+      required: [true, "Please add an email"],
       unique: true,
-      sparse: true,
       lowercase: true,
       match: [
         /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
         "Please add a valid email",
       ],
-    },
-    phone: {
-      type: String,
-      required: function () {
-        return !this.email; // Phone required if email not provided
-      },
-      unique: true,
-      sparse: true,
     },
     password: {
       type: String,
@@ -79,10 +68,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -101,16 +86,15 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// Encrypt password using bcrypt
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
-    next();
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Match user entered password to hashed password in database
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

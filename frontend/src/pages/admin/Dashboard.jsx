@@ -4,6 +4,7 @@ import axios from "../../utils/axios";
 import AddCourseModal from "../../components/course/AddCourseModal";
 import EditCourseModal from "../../components/course/EditCourseModal";
 import SuggestionDetailModal from "../../components/admin/SuggestionDetailModal";
+import PromotionalEmailModal from "../../components/admin/PromotionalEmailModal";
 import {
   AcademicCapIcon,
   CurrencyRupeeIcon,
@@ -16,6 +17,7 @@ import {
   PlusIcon,
   LightBulbIcon,
   EyeIcon,
+  EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 
 const AdminDashboard = () => {
@@ -32,6 +34,7 @@ const AdminDashboard = () => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [showSuggestionDetail, setShowSuggestionDetail] = useState(false);
+  const [showPromotional, setShowPromotional] = useState(false);
 
   useEffect(() => {
     fetchAdminData();
@@ -266,6 +269,16 @@ const AdminDashboard = () => {
               }`}
             >
               Suggestions ({suggestions.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("promotional")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === "promotional"
+                  ? "border-lime-500 text-lime-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Promotional
             </button>
           </nav>
         </div>
@@ -819,6 +832,20 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* Promotional Tab */}
+        {activeTab === "promotional" && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-bold mb-4">Send Promotional Email</h2>
+            <button
+              onClick={() => setShowPromotional(true)}
+              className="flex items-center space-x-2 btn-primary"
+            >
+              <EnvelopeIcon className="h-5 w-5" />
+              <span>New Campaign</span>
+            </button>
+          </div>
+        )}
+
         {/* Add Course Modal */}
         <AddCourseModal
           isOpen={showAddCourse}
@@ -845,6 +872,10 @@ const AdminDashboard = () => {
             setSelectedSuggestion(null);
           }}
           suggestion={selectedSuggestion}
+        />
+        <PromotionalEmailModal
+          isOpen={showPromotional}
+          onClose={() => setShowPromotional(false)}
         />
       </div>
     </div>
