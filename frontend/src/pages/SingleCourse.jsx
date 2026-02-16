@@ -8,11 +8,89 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   DocumentTextIcon,
-  EnvelopeIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon as CheckCircleSolid } from "@heroicons/react/24/solid";
 
+// ========== YOUTUBE PLAYER HELPER FUNCTION ==========
+// This function generates a YouTube embed URL with customizable features
+// You can easily enable/disable any YouTube feature by changing the parameters
+const getYouTubeEmbedUrl = (videoId, options = {}) => {
+  // Default settings - only essential controls enabled
+  const defaultOptions = {
+    // Core controls (keep these - essential for user experience)
+    controls: 1, // Show player controls (play, volume, etc.)
+    disablekb: 0, // Enable keyboard controls
+    fs: 1, // Enable fullscreen button
+    playsinline: 1, // Play inline on mobile
+
+    // Features to hide (remove YouTube branding)
+    modestbranding: 1, // Hide YouTube logo
+    rel: 0, // No related videos at the end
+    showinfo: 0, // Hide video title and uploader
+    iv_load_policy: 3, // Hide annotations
+
+    // Additional controls
+    cc_load_policy: 0, // Don't auto-load captions
+    color: "white", // Controls color (red or white)
+    autoplay: 0, // Don't autoplay
+
+    // Privacy enhanced
+    enablejsapi: 0, // Disable JS API if not needed
+
+    ...options, // Override any defaults by passing options
+  };
+
+  // Build query string from options
+  const queryString = Object.entries(defaultOptions)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+
+  // Use youtube-nocookie.com for privacy (no tracking cookies)
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${queryString}`;
+};
+
+// ========== YOUTUBE PLAYER COMPONENT ==========
+// This component wraps the iframe with all our custom settings
+const YouTubePlayer = ({ videoId, title }) => {
+  // You can easily customize what to show/hide by modifying this config
+  const playerConfig = {
+    // Set these to 1 to show, 0 to hide
+    showControls: 1, // Show play/volume/fullscreen
+    showRelated: 0, // Hide related videos at end
+    showTitle: 0, // Hide video title
+    showLogo: 0, // Hide YouTube logo
+    showAnnotations: 0, // Hide annotations
+    enableKeyboard: 1, // Enable keyboard controls
+    enableFullscreen: 1, // Enable fullscreen button
+    enableCaptions: 0, // Don't auto-load captions
+    colorTheme: "white", // "red" or "white"
+  };
+
+  const embedUrl = getYouTubeEmbedUrl(videoId, {
+    controls: playerConfig.showControls,
+    rel: playerConfig.showRelated,
+    showinfo: playerConfig.showTitle,
+    modestbranding: playerConfig.showLogo ? 0 : 1,
+    iv_load_policy: playerConfig.showAnnotations ? 1 : 3,
+    disablekb: playerConfig.enableKeyboard ? 0 : 1,
+    fs: playerConfig.enableFullscreen ? 1 : 0,
+    cc_load_policy: playerConfig.enableCaptions ? 1 : 0,
+    color: playerConfig.colorTheme,
+  });
+
+  return (
+    <iframe
+      src={embedUrl}
+      title={title}
+      className="w-full h-full"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+      allowFullScreen
+    ></iframe>
+  );
+};
+
+// ========== MAIN COMPONENT ==========
 const SingleCourse = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -251,13 +329,12 @@ const SingleCourse = () => {
           <div className="lg:w-2/3">
             {currentTopic ? (
               <>
+                {/* Video Player - Using our custom YouTubePlayer component */}
                 <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${extractYouTubeId(currentTopic.youtubeLink)}`}
+                  <YouTubePlayer
+                    videoId={extractYouTubeId(currentTopic.youtubeLink)}
                     title={currentTopic.title}
-                    className="w-full h-full"
-                    allowFullScreen
-                  ></iframe>
+                  />
                 </div>
 
                 <div className="mb-6">
