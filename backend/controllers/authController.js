@@ -11,6 +11,14 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    // Validate input
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -20,9 +28,11 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // Generate verification token
     const { verificationToken, hashedToken, verificationExpire } =
       generateVerificationToken();
 
+    // Create user
     const user = await User.create({
       name,
       email,
@@ -33,52 +43,56 @@ const registerUser = async (req, res) => {
       role: "visitor",
     });
 
-    const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+    // Generate JWT token for auto-login
+    const token = generateToken(user._id);
 
-    const message = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #84cc16;">Verify Your Email</h2>
-        <p>Hello ${user.name},</p>
-        <p>Thank you for registering. Please verify your email by clicking the button below:</p>
-        <a href="${verificationUrl}" style="display: inline-block; background: #84cc16; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Verify Email</a>
-        <p>Or copy this link: ${verificationUrl}</p>
-        <p>This link expires in 24 hours.</p>
-      </div>
-    `;
-
+    // Try to send verification email, but don't fail if it doesn't work
     try {
+      const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+      const message = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #84cc16;">Verify Your Email</h2>
+          <p>Hello ${user.name},</p>
+          <p>Thank you for registering. Please verify your email by clicking the button below:</p>
+          <a href="${verificationUrl}" style="display: inline-block; background: #84cc16; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Verify Email</a>
+          <p>Or copy this link: ${verificationUrl}</p>
+          <p>This link expires in 24 hours.</p>
+        </div>
+      `;
+
       await sendEmail({
         email: user.email,
         subject: "Verify Your Email - LMS.io",
         message,
       });
-      await sendWelcomeEmail(user);
-      const token = generateToken(user._id);
 
-      res.status(201).json({
-        success: true,
-        token,
-        message: "Registration successful! Please check your email.",
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-        },
-      });
-    } catch (error) {
-      await User.findByIdAndDelete(user._id);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to send verification email. Please try again.",
-      });
+      console.log("✅ Verification email sent to:", user.email);
+    } catch (emailError) {
+      console.error(
+        "❌ Email sending failed but user was created:",
+        emailError.message,
+      );
+      // Don't delete the user - just log the error
     }
+
+    // Always return success with token - user can verify later
+    res.status(201).json({
+      success: true,
+      token,
+      message: "Registration successful! You can now login.",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Registration failed",
     });
   }
 };
