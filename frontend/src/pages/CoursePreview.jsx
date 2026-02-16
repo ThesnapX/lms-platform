@@ -256,7 +256,7 @@ const CoursePreview = () => {
                     {/* Chapter Header */}
                     <button
                       onClick={() => toggleChapter(chapter._id)}
-                      className="w-full flex items-center justify-between p-5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="w-full flex items-center justify-start  p-5 bg-gray-50  dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         {expandedChapters.includes(chapter._id) ? (
@@ -264,22 +264,22 @@ const CoursePreview = () => {
                         ) : (
                           <ChevronRightIcon className="h-5 w-5 text-lime-600 dark:text-lime-400" />
                         )}
-                        <div className="text-left">
+                        <div className="text-left w-[80%]">
                           <span className="font-semibold text-gray-900 dark:text-white">
                             Chapter {index + 1}: {chapter.title}
                           </span>
                           {!expandedChapters.includes(chapter._id) && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
+                            <p className="text-sm  text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
                               {chapter.description}
                             </p>
                           )}
                         </div>
                       </div>
-                      <span className="text-sm bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 px-3 py-1 rounded-full font-medium">
+                      {/* <span className="text-sm w-[20%] bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 px-3 py-1 rounded-full font-medium">
                         {chapter.topics?.length || 0} topics
                         {chapter.subChapters?.length > 0 &&
                           ` • ${chapter.subChapters.length} sub-chapters`}
-                      </span>
+                      </span> */}
                     </button>
 
                     {/* Chapter Content */}
