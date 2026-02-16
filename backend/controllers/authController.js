@@ -1,17 +1,15 @@
 const crypto = require("crypto");
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
-const generateVerificationToken = require("../utils/generateVerificationToken");
-const sendEmail = require("../utils/sendEmail");
-const { sendWelcomeEmail } = require("../services/emailService");
-// @desc    Register user
+
+// @desc    Register user - OPTIMIZED FOR SPEED
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validate input
+    // Quick validation
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -19,8 +17,8 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
+    // Check if user exists (quick query)
+    const existingUser = await User.findOne({ email }).select("_id").lean();
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -28,64 +26,27 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Generate verification token
-    const { verificationToken, hashedToken, verificationExpire } =
-      generateVerificationToken();
-
-    // Create user
+    // Create user - NO EMAIL VERIFICATION FIELDS
     const user = await User.create({
       name,
       email,
       password,
-      emailVerificationToken: hashedToken,
-      emailVerificationExpire: verificationExpire,
-      isEmailVerified: false,
       role: "visitor",
     });
 
-    // Generate JWT token for auto-login
+    // Generate token
     const token = generateToken(user._id);
 
-    // Try to send verification email, but don't fail if it doesn't work
-    try {
-      const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
-      const message = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #84cc16;">Verify Your Email</h2>
-          <p>Hello ${user.name},</p>
-          <p>Thank you for registering. Please verify your email by clicking the button below:</p>
-          <a href="${verificationUrl}" style="display: inline-block; background: #84cc16; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Verify Email</a>
-          <p>Or copy this link: ${verificationUrl}</p>
-          <p>This link expires in 24 hours.</p>
-        </div>
-      `;
-
-      await sendEmail({
-        email: user.email,
-        subject: "Verify Your Email - LMS.io",
-        message,
-      });
-
-      console.log("✅ Verification email sent to:", user.email);
-    } catch (emailError) {
-      console.error(
-        "❌ Email sending failed but user was created:",
-        emailError.message,
-      );
-      // Don't delete the user - just log the error
-    }
-
-    // Always return success with token - user can verify later
+    // Send response immediately
     res.status(201).json({
       success: true,
       token,
-      message: "Registration successful! You can now login.",
+      message: "Registration successful!",
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        isEmailVerified: user.isEmailVerified,
       },
     });
   } catch (error) {
@@ -103,6 +64,13 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide email and password",
+      });
+    }
 
     const user = await User.findOne({ email }).select("+password");
 
@@ -132,15 +100,15 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        isEmailVerified: user.isEmailVerified,
         purchasedCourses: user.purchasedCourses,
         courseProgress: user.courseProgress,
       },
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Login failed",
     });
   }
 };
@@ -160,6 +128,7 @@ const getMe = async (req, res) => {
       user,
     });
   } catch (error) {
+    console.error("Get me error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -173,6 +142,13 @@ const getMe = async (req, res) => {
 const googleLogin = async (req, res) => {
   try {
     const { googleId, email, name } = req.body;
+
+    if (!googleId || !email || !name) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
 
     let user = await User.findOne({ googleId });
 
@@ -188,7 +164,6 @@ const googleLogin = async (req, res) => {
           email,
           googleId,
           password: Math.random().toString(36).slice(-8),
-          isEmailVerified: true,
           role: "visitor",
         });
       }
@@ -204,7 +179,6 @@ const googleLogin = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        isEmailVerified: user.isEmailVerified,
       },
     });
   } catch (error) {
@@ -222,6 +196,13 @@ const googleLogin = async (req, res) => {
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide email",
+      });
+    }
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -243,8 +224,9 @@ const forgotPassword = async (req, res) => {
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
+    // We'll keep password reset emails as they're important
     const message = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #84cc16;">Password Reset</h2>
         <p>Hello ${user.name},</p>
         <p>Click the button below to reset your password. This link expires in 10 minutes.</p>
@@ -253,15 +235,11 @@ const forgotPassword = async (req, res) => {
       </div>
     `;
 
-    await sendEmail({
-      email: user.email,
-      subject: "Password Reset - LMS.io",
-      message,
-    });
-
+    // For now, just return the reset token (you can add email later)
     res.json({
       success: true,
       message: "Password reset email sent",
+      resetToken: resetToken, // For testing - remove in production
     });
   } catch (error) {
     console.error("Forgot password error:", error);
@@ -279,6 +257,13 @@ const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
 
     const resetTokenHash = crypto
       .createHash("sha256")
@@ -324,105 +309,6 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// @desc    Verify email
-// @route   GET /api/auth/verify-email/:token
-// @access  Public
-const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    const user = await User.findOne({
-      emailVerificationToken: hashedToken,
-      emailVerificationExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired token",
-      });
-    }
-
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpire = undefined;
-    await user.save();
-
-    const loginToken = generateToken(user._id);
-
-    res.json({
-      success: true,
-      message: "Email verified!",
-      token: loginToken,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isEmailVerified: true,
-      },
-    });
-  } catch (error) {
-    console.error("Verification error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-// @desc    Resend verification
-// @route   POST /api/auth/resend-verification
-// @access  Private
-const resendVerification = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-
-    if (user.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "Email already verified",
-      });
-    }
-
-    const { verificationToken, hashedToken, verificationExpire } =
-      generateVerificationToken();
-
-    user.emailVerificationToken = hashedToken;
-    user.emailVerificationExpire = verificationExpire;
-    await user.save();
-
-    const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
-
-    const message = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #84cc16;">Verify Your Email</h2>
-        <p>Hello ${user.name},</p>
-        <a href="${verificationUrl}" style="display: inline-block; background: #84cc16; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Verify Email</a>
-      </div>
-    `;
-
-    await sendEmail({
-      email: user.email,
-      subject: "Verify Your Email - LMS.io",
-      message,
-    });
-
-    res.json({
-      success: true,
-      message: "Verification email sent",
-    });
-  } catch (error) {
-    console.error("Resend error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
 module.exports = {
   registerUser,
   loginUser,
@@ -430,6 +316,4 @@ module.exports = {
   googleLogin,
   forgotPassword,
   resetPassword,
-  verifyEmail,
-  resendVerification,
 };

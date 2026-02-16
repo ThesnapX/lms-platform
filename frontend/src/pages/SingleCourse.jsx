@@ -25,7 +25,6 @@ const SingleCourse = () => {
   const [userProgress, setUserProgress] = useState(null);
   const [expandedChapters, setExpandedChapters] = useState([]);
   const [comment, setComment] = useState("");
-  const [showVerificationWarning, setShowVerificationWarning] = useState(false);
   const [redirectChecked, setRedirectChecked] = useState(false);
 
   useEffect(() => {
@@ -81,14 +80,6 @@ const SingleCourse = () => {
       setLoading(false);
     }
   };
-
-  // Remove the duplicate useEffect that was causing issues
-  // Delete this useEffect:
-  // useEffect(() => {
-  //   if (!authLoading && !loading && !hasAccess && redirectChecked) {
-  //     navigate(`/courses/${id}/preview`, { replace: true });
-  //   }
-  // }, [authLoading, loading, hasAccess, redirectChecked, id, navigate]);
 
   const findTopicById = (topicId, courseData) => {
     if (!courseData) return null;
@@ -255,30 +246,6 @@ const SingleCourse = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <div className="container-custom py-8">
-        {showVerificationWarning && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
-              <div className="text-center mb-4">
-                <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <EnvelopeIcon className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <h3 className="text-xl font-heading font-bold text-gray-900 dark:text-white mb-2">
-                  Email Verification Required
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Please verify your email to access this feature.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowVerificationWarning(false)}
-                className="w-full btn-primary"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Column - Video Player */}
           <div className="lg:w-2/3">

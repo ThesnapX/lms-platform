@@ -17,8 +17,6 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import VerifyEmail from "./pages/VerifyEmail";
-import ResendVerification from "./pages/ResendVerification";
 import PaymentPage from "./pages/PaymentPage";
 import AdminDashboard from "./pages/admin/Dashboard";
 import EditorDashboard from "./pages/editor/Dashboard";
@@ -49,7 +47,6 @@ function App() {
                 path="/reset-password/:token"
                 element={<ResetPassword />}
               />
-              <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
               {/* Protected */}
               <Route
@@ -65,14 +62,6 @@ function App() {
                 element={
                   <PrivateRoute>
                     <PaymentPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/resend-verification"
-                element={
-                  <PrivateRoute>
-                    <ResendVerification />
                   </PrivateRoute>
                 }
               />

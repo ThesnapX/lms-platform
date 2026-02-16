@@ -37,12 +37,6 @@ const PaymentPage = () => {
       return;
     }
 
-    // Check if email is verified
-    if (!user?.isEmailVerified) {
-      navigate("/dashboard?verify=required");
-      return;
-    }
-
     fetchCourseDetails();
   }, [courseId, isAuthenticated, user, navigate]);
 
