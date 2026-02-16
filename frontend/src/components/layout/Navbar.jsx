@@ -86,7 +86,7 @@ const Navbar = () => {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="hidden md:flex items-center space-x-2 text-gray-700 hover:text-red-500"
+                  className="hidden md:flex items-center space-x-2 text-gray-500 hover:text-red-500"
                 >
                   <ArrowRightOnRectangleIcon className="h-5 w-5" />
                   <span>Logout</span>

@@ -1,8 +1,10 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 
+// Create context
 const AuthContext = createContext();
 
+// Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -11,6 +13,7 @@ export const useAuth = () => {
   return context;
 };
 
+// Auth provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,14 +73,28 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
+      console.log("Sending registration data:", userData);
       const response = await axios.post("/auth/register", userData);
 
-      const { token, user } = response.data;
-      setAuthToken(token);
-      setUser(user);
+      console.log("Registration response:", response.data);
 
-      return { success: true };
+      const { token, user } = response.data;
+
+      if (token) {
+        setAuthToken(token);
+        setUser(user);
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          message: "Registration succeeded but no token received",
+        };
+      }
     } catch (error) {
+      console.error(
+        "Registration error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         message: error.response?.data?.message || "Registration failed",
@@ -101,6 +118,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Value object with all auth methods and state
   const value = {
     user,
     loading,
@@ -115,3 +133,6 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// Also export the context for advanced use cases if needed
+export default AuthContext;

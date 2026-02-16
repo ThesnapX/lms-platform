@@ -1,10 +1,8 @@
 import { useGoogleLogin } from "@react-oauth/google";
-import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const GoogleLoginButton = ({ buttonText = "Continue with Google" }) => {
-  const { login } = useAuth(); // Using your existing auth context
   const navigate = useNavigate();
 
   const handleGoogleSuccess = async (tokenResponse) => {
@@ -12,9 +10,8 @@ const GoogleLoginButton = ({ buttonText = "Continue with Google" }) => {
       console.log("Google login success, getting user info...");
 
       // Exchange the token for user info
-      const response = await axios.post(
+      const response = await axios.get(
         "https://www.googleapis.com/oauth2/v3/userinfo",
-        {},
         {
           headers: {
             Authorization: `Bearer ${tokenResponse.access_token}`,
@@ -25,26 +22,26 @@ const GoogleLoginButton = ({ buttonText = "Continue with Google" }) => {
       const userInfo = response.data;
       console.log("Google user info:", userInfo);
 
-      // Send to your backend
-      const backendResponse = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/google`,
-        {
-          googleId: userInfo.sub,
-          email: userInfo.email,
-          name: userInfo.name,
-          picture: userInfo.picture,
-        },
-      );
+      // Send to your backend - use relative URL or env variable
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const backendResponse = await axios.post(`${apiUrl}/auth/google`, {
+        googleId: userInfo.sub,
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture,
+      });
 
       const { token, user } = backendResponse.data;
 
-      // Store token and update auth state
+      // Store token and redirect
       localStorage.setItem("token", token);
+
+      // Set default header for future requests
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      // Use your existing auth context to update user
-      // This assumes your AuthContext has a way to set user
-      window.location.href = "/dashboard"; // Simple redirect
+      // Redirect to dashboard
+      navigate("/dashboard");
     } catch (error) {
       console.error(
         "Google login error:",
@@ -60,7 +57,7 @@ const GoogleLoginButton = ({ buttonText = "Continue with Google" }) => {
       console.error("Google login failed:", error);
       alert("Google login failed. Please try again.");
     },
-    flow: "implicit", // Uses implicit flow for access token
+    flow: "implicit",
     scope: "email profile openid",
   });
 

@@ -17,11 +17,13 @@ const Register = () => {
   const navigate = useNavigate();
   const [registerError, setRegisterError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const password = watch("password", "");
 
   const onSubmit = async (data) => {
     setRegisterError("");
+    setSuccessMessage("");
     setLoading(true);
 
     const userData = {
@@ -30,14 +32,34 @@ const Register = () => {
       password: data.password,
     };
 
-    const result = await registerUser(userData);
+    try {
+      const result = await registerUser(userData);
 
-    setLoading(false);
+      console.log("Registration result:", result);
 
-    if (result.success) {
-      navigate("/dashboard");
-    } else {
-      setRegisterError(result.message);
+      if (result.success) {
+        setSuccessMessage(
+          "Registration successful! Redirecting to dashboard...",
+        );
+
+        // Check if token exists in localStorage
+        const token = localStorage.getItem("token");
+        console.log("Token after registration:", token ? "Present" : "Missing");
+
+        // Small delay to show success message then redirect
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 1500);
+      } else {
+        setRegisterError(
+          result.message || "Registration failed. Please try again.",
+        );
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      setRegisterError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,6 +83,12 @@ const Register = () => {
             </Link>
           </p>
         </div>
+
+        {successMessage && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+            {successMessage}
+          </div>
+        )}
 
         {registerError && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
